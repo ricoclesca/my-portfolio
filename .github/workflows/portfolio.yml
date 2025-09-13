@@ -37,5 +37,5 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           #port: ${{ secrets.SERVER_PORT }}
           script: |
-            docker rm -f portfolio 
+            docker rm -f portfolio || true
             docker run -d --name portfolio -p 8080:5001 ${{ secrets.DOCKER_USERNAME }}/portfolio-images:${{ github.run_number }}
