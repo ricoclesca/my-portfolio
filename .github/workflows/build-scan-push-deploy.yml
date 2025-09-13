@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-scan-push-deploy:
+  build-scan-push:
     runs-on: ubuntu-latest
 
     steps:
@@ -30,7 +30,7 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: portfolio
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ github.run_number }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
 
@@ -38,10 +38,10 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: ${{ steps.login-ecr.outputs.registry }}/portfolio:${{ github.sha }}
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/portfolio:${{ github.run_numbers }}
           format: 'table'
           exit-code: '1'
-          severity: 'low'
+          severity: 'HIGH,CRITICAL'
 
       # Push to ECR (only if scan passes)
       - name: Push Docker image
@@ -49,12 +49,12 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: portfolio
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ github.run_numbers }}
         run: |
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
   deploy:
-    needs: build
+    needs: build-scan-push
     runs-on: ubuntu-latest
     steps:
       - name: SSH and deploy
@@ -69,12 +69,12 @@ jobs:
             docker run -d --name portfolio -p 8080:5001 ${{ secrets.DOCKER_USERNAME }}/portfolio-images:${{ github.run_number }}
 
       # Deploy to ECS
-"""      - name: Deploy to Amazon ECS
-        if: success()
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ecs-task-def.json
-          service: portfolio-service
-          cluster: portfolio-cluster
-          wait-for-service-stability: true
-          """
+    #   - name: Deploy to Amazon ECS
+    #     if: success()
+    #     uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+    #     with:
+    #       task-definition: ecs-task-def.json
+    #       service: portfolio-service
+    #       cluster: portfolio-cluster
+    #       wait-for-service-stability: true
+          
