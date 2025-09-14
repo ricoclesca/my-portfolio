@@ -5,14 +5,12 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build-scan-push:
+  build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -20,12 +18,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      # Login to Amazon ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Build Docker image
       - name: Build Docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -34,28 +30,43 @@ jobs:
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
 
-      # Scan with Trivy before push
+      - name: Save image details
+        run: echo "ECR_IMAGE=${{ steps.login-ecr.outputs.registry }}/portfolio:${{ github.run_number }}" >> $GITHUB_ENV
+
+  scan:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: ${{ steps.login-ecr.outputs.registry }}/portfolio:${{ github.run_numbers }}
+          image-ref: ${{ env.ECR_IMAGE }}
           format: 'table'
           exit-code: '1'
           severity: 'HIGH,CRITICAL'
 
-      # Push to ECR (only if scan passes)
+  push:
+    runs-on: ubuntu-latest
+    needs: scan
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Push Docker image
-        if: success()
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: portfolio
-          IMAGE_TAG: ${{ github.run_numbers }}
         run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push ${{ env.ECR_IMAGE }}
 
   deploy:
-    needs: build-scan-push
     runs-on: ubuntu-latest
+    needs: push
     steps:
       - name: SSH and deploy
         uses: appleboy/ssh-action@v1
@@ -63,18 +74,15 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
-          #port: ${{ secrets.SERVER_PORT }}
           script: |
             docker rm -f portfolio || true
-            docker run -d --name portfolio -p 8080:5001 ${{ secrets.DOCKER_USERNAME }}/portfolio-images:${{ github.run_number }}
+            docker run -d --name portfolio -p 8080:5001 ${{ env.ECR_IMAGE }}
 
-      # Deploy to ECS
-    #   - name: Deploy to Amazon ECS
-    #     if: success()
-    #     uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-    #     with:
-    #       task-definition: ecs-task-def.json
-    #       service: portfolio-service
-    #       cluster: portfolio-cluster
-    #       wait-for-service-stability: true
-          
+      # Optionally deploy to ECS instead of SSH
+      # - name: Deploy to Amazon ECS
+      #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      #   with:
+      #     task-definition: ecs-task-def.json
+      #     service: portfolio-service
+      #     cluster: portfolio-cluster
+      #     wait-for-service-stability: true
