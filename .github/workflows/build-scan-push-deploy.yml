@@ -1,8 +1,8 @@
 name: CI/CD to AWS ECS
 
-on:
+#on:
   push:
-    #branches: [ "main" ]
+    branches: [ "main" ]
 
 jobs:
   build:
