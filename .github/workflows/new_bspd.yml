@@ -6,8 +6,8 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: portfolio
-  IMAGE_TAG: ${{ ECR_REPOSITORY }}: ${{ github.run_number }}
+  ECR_REPOSITORY: portfolio-images
+  IMAGE_TAG: portfolio: ${{ github.run_number }}
   REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
   REMOTE_USER: ${{ secrets.REMOTE_USER }}
   REMOTE_KEY: ${{ secrets.REMOTE_KEY }}
