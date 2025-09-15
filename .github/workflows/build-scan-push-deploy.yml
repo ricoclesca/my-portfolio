@@ -29,12 +29,12 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: portfolio
-          IMAGE_TAG: ${{ github.run_number }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
 
       - name: Save image details
-        run: echo "ECR_IMAGE=${{ steps.login-ecr.outputs.registry }}/portfolio:${{ github.run_number }}" >> $GITHUB_ENV
+        run: echo "ECR_IMAGE=${{ steps.login-ecr.outputs.registry }}/portfolio:${{ github.sha }}" >> $GITHUB_ENV
 
   scan:
     name: Scan image with Trivy
@@ -44,10 +44,19 @@ jobs:
       id-token: write
       contents: read
     steps:
+      - name: Download image details artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: image-details
+          path: .
+      - name: Read ECR_IMAGE from environment
+        run: echo "ECR_IMAGE is $ECR_IMAGE"
+        env:
+          ECR_IMAGE: ${{ env.ECR_IMAGE }}
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: portfolio:${{ github.run_number }}
+          image-ref: ${{ env.ECR_IMAGE }}
           format: 'table'
           exit-code: '1'
           severity: 'HIGH,CRITICAL'
@@ -72,7 +81,7 @@ jobs:
 
       - name: Push Docker image
         run: |
-          docker push portfolio:${{ github.run_number }}
+          docker push portfolio:${{ github.sha }}
 
   deploy:
     name: Deploy to server via SSH
@@ -96,7 +105,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             docker rm -f portfolio || true
-            docker run -d --name portfolio -p 8080:5001 portfolio:${{ github.run_number }}
+            docker run -d --name portfolio -p 8080:5001 portfolio:${{ github.sha }}
 
       # Optionally deploy to ECS instead of SSH
       # - name: Deploy to Amazon ECS
