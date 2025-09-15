@@ -90,7 +90,10 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            
-            docker run -d --name portfolio -p 8080:5001 570546977829.dkr.ecr.us-east-1.amazonaws.com/portfolio:05766c1b528765de73e1da463ffdb6d2f6b1359d
+            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 570546977829.dkr.ecr.us-east-1.amazonaws.com
+            docker pull ${{ steps.login-ecr.outputs.registry }}/portfolio:${{ github.sha }}
+            docker stop portfolio || true
+            docker rm portfolio || true
+            docker run -d --name portfolio -p 8080:5001 ${{ steps.login-ecr.outputs.registry }}/portfolio:${{ github.sha }}
 
       
