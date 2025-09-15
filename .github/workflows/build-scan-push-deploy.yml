@@ -68,7 +68,7 @@ jobs:
   deploy:
     name: Deploy to server via SSH
     runs-on: ubuntu-latest
-    needs: build
+    needs: scan
     permissions:
       id-token: write
       contents: read
