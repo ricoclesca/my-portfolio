@@ -86,7 +86,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            docker rm -f portfolio || true
+            #docker rm -f portfolio || true
             docker run -d --name portfolio -p 8080:5001 570546977829.dkr.ecr.us-east-1.amazonaws.com/portfolio:${{ github.sha }}
 
       
