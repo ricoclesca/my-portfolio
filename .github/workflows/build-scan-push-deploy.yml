@@ -44,15 +44,15 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Download image details artifact
-        uses: actions/download-artifact@v4
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          name: image-details
-          path: .
-      - name: Read ECR_IMAGE from environment
-        run: echo "ECR_IMAGE is $ECR_IMAGE"
-        env:
-          ECR_IMAGE: ${{ env.ECR_IMAGE }}
+          role-to-assume: arn:aws:iam::570546977829:role/GitHub_OIDC_Token
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.20.0
         with:
@@ -107,11 +107,4 @@ jobs:
             docker rm -f portfolio || true
             docker run -d --name portfolio -p 8080:5001 portfolio:${{ github.sha }}
 
-      # Optionally deploy to ECS instead of SSH
-      # - name: Deploy to Amazon ECS
-      #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      #   with:
-      #     task-definition: ecs-task-def.json
-      #     service: portfolio-service
-      #     cluster: portfolio-cluster
-      #     wait-for-service-stability: true
+      
