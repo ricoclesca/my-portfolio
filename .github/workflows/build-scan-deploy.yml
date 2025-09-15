@@ -79,6 +79,10 @@ jobs:
           role-to-assume: arn:aws:iam::570546977829:role/GitHub_OIDC_Token
           aws-region: us-east-1
 
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+        id: login-ecr
+
       - name: SSH and deploy
         uses: appleboy/ssh-action@v1
         with:
