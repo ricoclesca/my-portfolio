@@ -47,7 +47,7 @@ jobs:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: ${{ env.ECR_IMAGE }}
+          image-ref: ${{ steps.build-image.outputs.image }}
           format: 'table'
           exit-code: '1'
           severity: 'HIGH,CRITICAL'
@@ -72,7 +72,7 @@ jobs:
 
       - name: Push Docker image
         run: |
-          docker push ${{ env.ECR_IMAGE }}
+          docker push ${{ steps.build-image.outputs.image }}
 
   deploy:
     name: Deploy to server via SSH
@@ -96,7 +96,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             docker rm -f portfolio || true
-            docker run -d --name portfolio -p 8080:5001 ${{ env.ECR_IMAGE }}
+            docker run -d --name portfolio -p 8080:5001 ${{ steps.build-image.outputs.image }}
 
       # Optionally deploy to ECS instead of SSH
       # - name: Deploy to Amazon ECS
